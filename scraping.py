@@ -12,9 +12,9 @@ def scrape_all():
     # Initiate headless driver for deployment
     executable_path = {'executable_path': ChromeDriverManager().install()}
     browser = Browser('chrome', **executable_path, headless=True)
-
-    news_title, news_paragraph = mars_news(browser)
     
+    news_title, news_paragraph = mars_news(browser)
+    hemisphere_image_urls=hemisphere(browser)
     # Run all scraping functions and store results in dictionary
     data = {
         "news_title": news_title,
@@ -22,7 +22,7 @@ def scrape_all():
         "featured_image": featured_image(browser),
         "facts": mars_facts(),
         "last_modified": dt.datetime.now(),
-        "hemisphere_image_urls": hemisphere_image_urls(browser)
+        "hemisphere_image_urls": hemisphere(browser)
     }
     # Stop webdriver and return data
     browser.quit()
@@ -94,8 +94,37 @@ def mars_facts():
     # Convert dataframe into HTML format, add bootstrap
     return df.to_html(classes="table table-striped")
 
+
+def hemisphere(browser):
+    url='https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars'
+    browser.visit(url)
+
+    hemisphere_image_urls = []
+
+     # Parse the HTML
+    html = browser.html
+    mhemi_list = soup(html, 'html.parser')
+    # find the list of results
+    items = mhemi_list.find_all('div', class_='item')
+
+    base_part_url = 'https://astrogeology.usgs.gov'
+
+    for item in items:
+        url = item.find("a")['href']
+        browser.visit(base_part_url+url)
+        # Parse individual hemi page
+        hemi_item_html = browser.html
+        hemi_soup = soup(hemi_item_html, 'html.parser')
+        # Scrape title of hemi
+        title = hemi_soup.find('h2', class_ = 'title').text
+        # Scrape URL of JPG image
+        downloads = hemi_soup.find('div', class_ = 'downloads')
+        image_url = downloads.find('a')['href']
+        # append dict to empty list
+        hemisphere_image_urls.append({"title": title, "img_url": image_url})
+
+    return hemisphere_image_urls
+
 if __name__ == "__main__":
-    # If running as script, print scraped data
+    # if running as script, print scraped data
     print(scrape_all())
-
-
